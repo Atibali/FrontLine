@@ -1,4 +1,4 @@
-﻿"""Command line interface for FRONTLINE triage."""
+"""Command line interface for FRONTLINE triage."""
 
 from __future__ import annotations
 
@@ -118,16 +118,20 @@ def _run(args: argparse.Namespace) -> int:
 
     per_message = elapsed_ms / max(1, len(predictions))
     print(f"\nProcessed {len(predictions)} messages in {elapsed_ms:.1f} ms ({per_message:.2f} ms/message).")
-    print(f"Saved predictions to {args.output}. {_cost_summary(args.mode, groq_client)}")
+    print(f"Saved predictions to {args.output}. {_cost_summary(args.mode, groq_client, groq_disabled_reason)}")
     return 0
 
 
-def _cost_summary(mode: str, groq_client) -> str:
+def _cost_summary(mode: str, groq_client, groq_disabled_reason: str | None = None) -> str:
     """Return a human-readable cost string appropriate for the triage mode."""
     offline_part = "Offline model cost: $0.00."
     if mode == "offline" or groq_client is None:
         return offline_part
     prompt_tok, completion_tok = groq_client.token_usage()
+    # Groq was configured but every call fell back (rate limited, network error, etc.)
+    if prompt_tok == 0 and completion_tok == 0:
+        reason = f" ({groq_disabled_reason})" if groq_disabled_reason else ""
+        return f"{offline_part} Groq unavailable{reason} — all messages processed offline."
     cost = groq_client.estimated_cost()
     groq_part = (
         f"Groq cost: ~${cost:.6f} "

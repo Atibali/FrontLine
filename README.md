@@ -1,15 +1,14 @@
-﻿# FRONTLINE â€” Offline-First Customer Message Triage
+# FRONTLINE — Offline-First Customer Message Triage
 
-> Turns raw, messy customer messages into structured, actionable triage decisions â€” instantly, with zero API cost by default.
+> Turns raw, messy customer messages into structured, actionable triage decisions — instantly, with zero API cost by default.
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Cost](https://img.shields.io/badge/offline%20cost-%240.00-brightgreen)
-![Groq](https://img.shields.io/badge/Groq-optional-orange?logo=groq)
+![Offline Cost](https://img.shields.io/badge/offline%20cost-%240.00-brightgreen)
+![Groq](https://img.shields.io/badge/Groq-optional-orange)
 
 ---
 
-\n## .env\n\nPlace your Groq settings in a file named `.env` in the project root: `C:\Users\minha\Documents\atib\FrontLine\.env`. The CLI loads it automatically on every run.\n\nExample:\n\n```powershell\nGROQ_API_KEY=your_groq_api_key_here\nGROQ_MODEL=llama-3.1-8b-instant\nGROQ_TIMEOUT_SECONDS=20\nGROQ_THROTTLE_SECS=2\n```\n
 ## What It Does
 
 Every message in `data/messages.jsonl` is processed into a structured JSON decision:
@@ -21,7 +20,7 @@ Every message in `data/messages.jsonl` is processed into a structured JSON decis
   "summary": "Charged twice for April subscription, requesting refund.",
   "suggested_action": "Review billing records and issue a partial refund.",
   "needs_human": false,
-  "confidence": 0.78
+  "confidence": 0.79
 }
 ```
 
@@ -29,30 +28,31 @@ Every message in `data/messages.jsonl` is processed into a structured JSON decis
 
 | Feature | Detail |
 |---------|--------|
-| ðŸ”Œ Zero-dependency offline engine | Runs on Python stdlib only â€” no API key required |
-| ðŸ¤– Optional Groq LLM backend | Upgrade uncertain cases with `llama-3.1-8b-instant` |
-| ðŸ”€ Hybrid routing | Offline handles confident cases; Groq handles edge cases |
-| ðŸ›¡ï¸ Prompt-injection resistance | Customer messages never influence their own classification |
-| ðŸŒ Multilingual detection | Non-English messages auto-escalate to human review |
-| ðŸ’° Real cost reporting | Token-accurate USD estimates for Groq and hybrid modes |
-| ðŸ“Š Evaluation suite | Measures category, priority, and human-flag agreement |
-| âš¡ Fast | ~0.2 ms/message offline; ~2.5 s/message with Groq throttle |
+| 🔌 Zero-dependency offline engine | Runs on Python stdlib only — no API key required |
+| 🤖 Optional Groq LLM backend | Upgrade uncertain cases with `llama-3.1-8b-instant` |
+| 🔀 Hybrid routing | Offline handles confident cases; Groq handles edge cases |
+| 🔁 Auto-retry on 429 | Reads Groq's rate-limit header and waits the exact right time |
+| 🛡️ Prompt-injection resistance | Customer messages never influence their own classification |
+| 🌐 Multilingual detection | Non-English messages auto-escalate to human review |
+| 💰 Real cost reporting | Token-accurate USD estimates per run |
+| 📊 Evaluation suite | Measures category, priority, and human-flag agreement |
+| ⚡ Fast | ~0.2 ms/message offline · ~2.5 s/message with Groq (throttled) |
 
 ---
 
 ## Quick Start
 
-### Option 1 â€” No install (set PYTHONPATH)
-
-```powershell
-$env:PYTHONPATH = "src"
-python -m frontline run --table
-```
-
-### Option 2 â€” Editable install (recommended)
+### Option 1 — Editable install (recommended, no PYTHONPATH needed)
 
 ```powershell
 python -m pip install -e .
+python -m frontline run --table
+```
+
+### Option 2 — No install
+
+```powershell
+$env:PYTHONPATH = "src"
 python -m frontline run --table
 ```
 
@@ -60,57 +60,63 @@ python -m frontline run --table
 
 ## Modes
 
-### Offline (default) â€” `$0.00`
+### 🔌 Offline — `$0.00`, instant
 
-Pure rules engine. Processes all 40 messages in under 10 ms.
+Pure keyword rules engine. Processes all 40 messages in under 10 ms. No API key needed.
 
 ```powershell
 python -m frontline run --mode offline --table
 ```
 
 ```
-Processed 40 messages in 8.3 ms (0.21 ms/message).
+Processed 40 messages in 7.8 ms (0.20 ms/message).
 Saved predictions to out\triage.json. Offline model cost: $0.00.
 ```
 
 ---
 
-### Groq â€” LLM-powered
+### 🤖 Groq — LLM-powered
 
-Sends every message to Groq's `llama-3.1-8b-instant` model.
-Requires `GROQ_API_KEY` in your `.env` or environment.
+Sends every message to Groq's `llama-3.1-8b-instant`. Requires `GROQ_API_KEY` in `.env`.
 
 ```powershell
 python -m frontline run --mode groq --table
 ```
 
 ```
-Processed 40 messages in 99,098.6 ms (2,477 ms/message).
+Processed 40 messages in 99,098 ms (2,477 ms/message).
 Saved predictions to out\triage.json. Groq cost: ~$0.000481
   (5,471 prompt + 2,590 completion tokens, model: llama-3.1-8b-instant).
 ```
 
-> **Rate limit:** The free Groq tier allows 30 requests/min.
-> FRONTLINE automatically throttles to 2 s between calls to stay within that limit.
+> **Rate limit:** Free tier = 30 RPM. FRONTLINE throttles to 2 s between calls.
+> If the bucket is already full it reads Groq's `x-ratelimit-reset-requests` header
+> and waits exactly that long before auto-retrying — no manual intervention needed.
+
+If Groq is completely unavailable the run finishes offline and tells you clearly:
+
+```
+Offline model cost: $0.00. Groq unavailable (429 Too Many Requests) — all messages processed offline.
+```
 
 ---
 
-### Hybrid â€” Best of both worlds
+### 🔀 Hybrid — Best of both worlds
 
-The offline engine runs first. If confidence is low, the category is unknown,
-or the message needs human review, it escalates to Groq.
+Offline engine runs first. Only uncertain messages (low confidence, unknown category, or
+flagged for human review) are escalated to Groq — saving tokens and keeping costs low.
 
 ```powershell
 python -m frontline run --mode hybrid --table
 ```
 
 ```
-Processed 40 messages in 91,354.0 ms (2,283 ms/message).
+Processed 40 messages in 91,354 ms (2,283 ms/message).
 Saved predictions to out\triage.json. Offline model cost: $0.00.
   Groq cost: ~$0.000432 (4,915 prompt + 2,328 completion tokens, model: llama-3.1-8b-instant).
 ```
 
-> Hybrid uses **fewer tokens than full Groq mode** because confident messages never reach the API.
+> Hybrid uses **fewer tokens than full Groq** because confident messages never hit the API.
 
 ---
 
@@ -127,12 +133,40 @@ python -m frontline eval [--truth PATH] [--predictions PATH]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--input` | `data/messages.jsonl` | Input messages |
-| `--output` | `out/triage.json` | Output predictions |
+| `--input` | `data/messages.jsonl` | Input messages (JSONL) |
+| `--output` | `out/triage.json` | Output predictions (JSON) |
 | `--mode` | `offline` | Triage engine to use |
 | `--model` | `llama-3.1-8b-instant` | Groq model name |
-| `--table` | off | Print a CLI table |
-| `--json` | off | Print JSON to stdout |
+| `--table` | off | Print a formatted CLI table |
+| `--json` | off | Print raw JSON to stdout |
+
+---
+
+## Common Run Commands
+
+```powershell
+# --- OFFLINE ---
+python -m frontline run --mode offline --table
+python -m frontline run --mode offline --input data/messages.jsonl --output out/triage_offline.json --table
+
+# --- GROQ ---
+python -m frontline run --mode groq --table
+python -m frontline run --mode groq --input data/messages.jsonl --output out/triage_groq.json --table
+
+# --- HYBRID ---
+python -m frontline run --mode hybrid --table
+python -m frontline run --mode hybrid --input data/messages.jsonl --output out/triage_hybrid.json --table
+
+# --- EVAL (always reads out/triage.json unless told otherwise) ---
+python -m frontline eval
+python -m frontline eval --predictions out/triage_groq.json
+
+# --- MOCK 200 STRESS TEST ---
+python -m frontline run --mode offline --input data/mock_200.jsonl --output out/mock_triage.json --table
+
+# --- UNIT TESTS ---
+python -m unittest
+```
 
 ---
 
@@ -141,7 +175,7 @@ python -m frontline eval [--truth PATH] [--predictions PATH]
 Copy `.env.example` to `.env` and fill in your key:
 
 ```ini
-GROQ_API_KEY=gsk_...          # Required for groq / hybrid modes
+GROQ_API_KEY=gsk_...              # Required for groq / hybrid modes
 GROQ_MODEL=llama-3.1-8b-instant  # Optional: override model
 GROQ_TIMEOUT_SECONDS=20          # Optional: request timeout
 ```
@@ -164,6 +198,9 @@ Exact triage agreement: 100.0%
 No failures against the current hand labels.
 ```
 
+> Run `python -m frontline run --mode offline` first to regenerate `out/triage.json`
+> before evaluating, since Groq runs overwrite the same file.
+
 ---
 
 ## Running Tests
@@ -172,8 +209,44 @@ No failures against the current hand labels.
 python -m unittest
 ```
 
-Tests cover: JSON field validity Â· priority constraints Â· prompt-injection resistance Â·
-vague input escalation Â· multilingual detection Â· evaluation math.
+```
+Ran 18 tests in 0.061s
+OK
+```
+
+Tests cover: JSON schema validity · priority constraints · confidence bounds ·
+prompt-injection resistance · vague input escalation · multilingual detection ·
+hybrid routing · evaluation math.
+
+---
+
+## Data & Output Files
+
+| File | Role |
+|------|------|
+| `data/messages.jsonl` | 40 raw customer messages (input) |
+| `data/ground_truth.jsonl` | 10 hand-labelled correct answers (for eval) |
+| `data/mock_200.jsonl` | 200 synthetic messages (stress / scale test) |
+| `out/triage.json` | Predictions written by the last `run` command |
+
+**Input format** (`messages.jsonl`):
+```jsonl
+{"id": "msg-001", "message": "I was charged twice for my April subscription."}
+```
+
+**Output format** (`triage.json`):
+```json
+[
+  {
+    "category": "billing",
+    "priority": "P2",
+    "summary": "...",
+    "suggested_action": "...",
+    "needs_human": false,
+    "confidence": 0.79
+  }
+]
+```
 
 ---
 
@@ -181,33 +254,32 @@ vague input escalation Â· multilingual detection Â· evaluation math.
 
 ```
 FrontLine/
-â”œâ”€â”€ src/frontline/
-â”‚   â”œâ”€â”€ triage.py         # Offline rules engine (keyword scoring, risk flags)
-â”‚   â”œâ”€â”€ groq_client.py    # Groq API client (token tracking, cost estimation)
-â”‚   â”œâ”€â”€ hybrid.py         # Hybrid routing logic
-â”‚   â”œâ”€â”€ cli.py            # CLI entry point (all modes + cost summary)
-â”‚   â”œâ”€â”€ eval.py           # Evaluation against ground truth
-â”‚   â”œâ”€â”€ io.py             # JSONL / JSON I/O helpers
-â”‚   â””â”€â”€ env.py            # .env loader
-â”œâ”€â”€ data/
-â”‚   â”œâ”€â”€ messages.jsonl    # 40 challenge messages
-â”‚   â””â”€â”€ ground_truth.jsonl # 10 hand-labeled examples
-â”œâ”€â”€ out/
-â”‚   â””â”€â”€ triage.json       # Generated predictions
-â”œâ”€â”€ tests/                # Unit tests
-â”œâ”€â”€ .env.example          # Environment variable template
-â”œâ”€â”€ AI_DECISIONS.md       # Design rationale and decision log
-â””â”€â”€ pyproject.toml        # Package metadata
+├── src/frontline/
+│   ├── triage.py         # Offline keyword rules engine
+│   ├── groq_client.py    # Groq API client (token tracking, retry, cost)
+│   ├── hybrid.py         # Hybrid routing logic
+│   ├── cli.py            # CLI entry point — all modes + cost summary
+│   ├── eval.py           # Evaluation against ground truth
+│   ├── io.py             # JSONL / JSON I/O helpers
+│   └── env.py            # .env loader
+├── data/
+│   ├── messages.jsonl    # 40 challenge messages
+│   ├── ground_truth.jsonl # 10 hand-labelled examples
+│   └── mock_200.jsonl    # 200 synthetic stress-test messages
+├── out/
+│   └── triage.json       # Generated predictions (overwritten each run)
+├── tests/                # 18 unit tests
+├── .env.example          # Environment variable template
+├── AI_DECISIONS.md       # Design rationale and decision log
+└── pyproject.toml        # Package metadata (Python 3.10+)
 ```
 
 ---
 
 ## Groq Model Pricing Reference
 
-Costs are calculated automatically based on the model used:
-
-| Model | Input ($/1M tok) | Output ($/1M tok) |
-|-------|-----------------|-------------------|
+| Model | Input ($/1M tokens) | Output ($/1M tokens) |
+|-------|--------------------|--------------------|
 | `llama-3.1-8b-instant` | $0.05 | $0.08 |
 | `llama3-8b-8192` | $0.05 | $0.08 |
 | `gemma2-9b-it` | $0.20 | $0.20 |
@@ -215,7 +287,8 @@ Costs are calculated automatically based on the model used:
 | `llama-3.3-70b-versatile` | $0.59 | $0.79 |
 | `llama3-70b-8192` | $0.59 | $0.79 |
 
+Cost is calculated automatically per run based on actual token usage.
+
 ---
 
-*Built for the FRONTLINE AI build challenge Â· Python 3.10+ Â· Zero required dependencies*
-
+*Built for the FRONTLINE AI build challenge · Python 3.10+ · Zero required dependencies*
