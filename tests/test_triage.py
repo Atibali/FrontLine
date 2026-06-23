@@ -1,4 +1,4 @@
-import json
+﻿import json
 import sys
 import unittest
 from pathlib import Path
@@ -17,6 +17,7 @@ class TriageTests(unittest.TestCase):
         self.assertGreaterEqual(len(rows), 40)
         for row in rows:
             decision = triage_message(row.get("message"), row.get("id"))
+            self.assertEqual(set(decision), set(REQUIRED_FIELDS))
             for field in REQUIRED_FIELDS:
                 self.assertIn(field, decision)
             self.assertIn(decision["category"], VALID_CATEGORIES)
@@ -26,6 +27,7 @@ class TriageTests(unittest.TestCase):
             self.assertIsInstance(decision["needs_human"], bool)
             self.assertGreaterEqual(decision["confidence"], 0.0)
             self.assertLessEqual(decision["confidence"], 1.0)
+            self.assertNotIn("id", decision)
             json.dumps(decision)
 
     def test_prompt_injection_is_not_followed(self):
@@ -67,3 +69,4 @@ class TriageTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

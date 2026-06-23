@@ -52,6 +52,9 @@ CATEGORY_RULES = (
             "2fa",
             "two factor",
             "data leak",
+            "leaked",
+            "private data",
+            "customer data",
             "account takeover",
             "strange login",
             "asked me for my password",
@@ -91,6 +94,8 @@ CATEGORY_RULES = (
             "cannot access",
             "verification code",
             "email changed",
+            "locked",
+            "locked out",
             "entrar",
             "cuenta",
             "लॉगिन",
@@ -169,6 +174,7 @@ CATEGORY_RULES = (
             "disappointed",
             "hate",
             "awful",
+            "lost sales",
         ),
     ),
     CategoryRule(
@@ -248,16 +254,36 @@ def triage_message(message: str | None, message_id: str | None = None) -> dict:
         confidence = 0.05
         needs_human = True
 
-    return {
-        "id": message_id,
+    return _validate_decision({
         "category": category,
         "priority": priority,
         "summary": _summary(raw),
         "suggested_action": ACTION_BY_CATEGORY[category],
         "needs_human": needs_human,
         "confidence": round(max(0.0, min(1.0, confidence)), 2),
-    }
+    })
 
+def _validate_decision(decision: dict) -> dict:
+    category = decision.get("category")
+    priority = decision.get("priority")
+    confidence = decision.get("confidence")
+    if category not in VALID_CATEGORIES:
+        category = "unknown"
+    if priority not in VALID_PRIORITIES:
+        priority = "P3"
+    if not isinstance(confidence, (int, float)):
+        confidence = 0.05
+    confidence = round(max(0.0, min(1.0, float(confidence))), 2)
+    summary = str(decision.get("summary") or "No usable customer message was provided.")
+    action = ACTION_BY_CATEGORY.get(category, ACTION_BY_CATEGORY["unknown"])
+    return {
+        "category": category,
+        "priority": priority,
+        "summary": summary,
+        "suggested_action": action,
+        "needs_human": bool(decision.get("needs_human", True)),
+        "confidence": confidence,
+    }
 
 def _normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text.casefold()).strip()
@@ -303,7 +329,7 @@ def _score_rule(text: str, rule: CategoryRule) -> int:
 def _priority_for(text: str, category: str, words: int, signals: dict[str, bool | int]) -> str:
     if category == "security" and any(term in text for term in ("breach", "fraud", "hacked", "stolen")):
         return "P0"
-    if any(term in text for term in ("down for everyone", "all users", "cannot process orders", "data leak")):
+    if any(term in text for term in ("down for everyone", "all users", "cannot process orders", "data leak", "private data", "customer data")):
         return "P0"
     if category in ("security", "billing") and signals["angry_or_legal"]:
         return "P1"
@@ -379,6 +405,8 @@ def _non_ascii_ratio(text: str) -> float:
     if not text:
         return 0.0
     return sum(1 for char in text if ord(char) > 127) / len(text)
+
+
 
 
 

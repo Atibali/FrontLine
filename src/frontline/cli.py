@@ -45,21 +45,24 @@ def _run(args: argparse.Namespace) -> int:
     start = time.perf_counter()
     rows = read_jsonl(args.input)
     predictions = []
+    table_rows = []
     for index, row in enumerate(rows, start=1):
         item_id = str(row.get("id") or f"msg-{index:03d}")
         message = row.get("message", "")
         decision = triage_message(message, item_id)
-        if row.get("_input_error"):
-            decision["input_error"] = row["_input_error"]
-            decision["needs_human"] = True
-            decision["confidence"] = min(decision["confidence"], 0.2)
         predictions.append(decision)
+        table_row = {"id": item_id, **decision}
+        if row.get("_input_error"):
+            table_row["input_error"] = row["_input_error"]
+            table_row["needs_human"] = True
+            table_row["confidence"] = min(table_row["confidence"], 0.2)
+        table_rows.append(table_row)
 
     elapsed_ms = (time.perf_counter() - start) * 1000
     write_json(args.output, predictions)
 
     if args.table:
-        print(_table(predictions))
+        print(_table(table_rows))
     if args.json:
         print(json.dumps(predictions, indent=2, ensure_ascii=False))
 
@@ -122,6 +125,7 @@ def _clip(value: str, width: int) -> str:
     if len(value) <= width:
         return value
     return value[: max(0, width - 3)] + "..."
+
 
 
 

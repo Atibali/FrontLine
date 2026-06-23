@@ -1,4 +1,4 @@
-"""Simple agreement metrics for hand-labeled examples."""
+﻿"""Simple agreement metrics for hand-labeled examples."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ class EvaluationResult:
 
 
 def evaluate(truth: list[dict], predictions: list[dict]) -> EvaluationResult:
-    by_id = {str(row.get("id")): row for row in predictions}
+    by_id = {str(row.get("id")): row for row in predictions if row.get("id") is not None}
     total = len(truth)
     category_hits = 0
     priority_hits = 0
@@ -24,9 +24,11 @@ def evaluate(truth: list[dict], predictions: list[dict]) -> EvaluationResult:
     exact_hits = 0
     failures: list[dict] = []
 
-    for expected in truth:
+    for index, expected in enumerate(truth):
         item_id = str(expected.get("id"))
         actual = by_id.get(item_id)
+        if actual is None and index < len(predictions):
+            actual = predictions[index]
         if actual is None:
             failures.append({"id": item_id, "reason": "missing prediction"})
             continue
@@ -64,3 +66,4 @@ def evaluate(truth: list[dict], predictions: list[dict]) -> EvaluationResult:
         exact_accuracy=exact_hits / denominator,
         failures=failures,
     )
+
