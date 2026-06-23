@@ -121,7 +121,7 @@ Groq cost: ~$0.000432 (4,915 prompt + 2,328 completion tokens, model: llama-3.1-
 
 ---
 
-## Evaluation — All Modes Score 100%
+## Evaluation
 
 ```powershell
 # Offline
@@ -136,12 +136,6 @@ python -m frontline eval --predictions out/triage_groq.json
 python -m frontline run --mode hybrid --output out/triage_hybrid.json
 python -m frontline eval --predictions out/triage_hybrid.json
 ```
-
-| Mode | Category | Priority | Human-flag | Exact |
-|------|----------|----------|------------|-------|
-| Offline | 100% | 100% | 100% | 100% |
-| Groq | 100% | 100% | 100% | 100% |
-| Hybrid | 100% | 100% | 100% | 100% |
 
 ---
 
@@ -357,13 +351,6 @@ python -m frontline eval --predictions out/triage_groq.json    # groq
 python -m frontline eval --predictions out/triage_hybrid.json  # hybrid
 ```
 
-**All three modes score 100% on 10 hand-labelled ground-truth examples:**
-
-| Mode | Category | Priority | Human-flag | Exact |
-|------|----------|----------|------------|-------|
-| Offline | 100% | 100% | 100% | 100% |
-| Groq | 100% | 100% | 100% | 100% |
-| Hybrid | 100% | 100% | 100% | 100% |
 
 Ground truth was hand-labelled — not auto-generated from the same classifier — covering
 billing, security P0, injection, out-of-scope, Spanish login failure, chargeback threat,
