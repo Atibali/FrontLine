@@ -1,0 +1,10 @@
+{"id":"msg-001","category":"billing","priority":"P2","needs_human":false}
+{"id":"msg-002","category":"technical_issue","priority":"P2","needs_human":false}
+{"id":"msg-007","category":"security","priority":"P0","needs_human":true}
+{"id":"msg-009","category":"unknown","priority":"P3","needs_human":true}
+{"id":"msg-010","category":"unknown","priority":"P3","needs_human":true}
+{"id":"msg-012","category":"account_access","priority":"P1","needs_human":true}
+{"id":"msg-013","category":"out_of_scope","priority":"P3","needs_human":false}
+{"id":"msg-015","category":"technical_issue","priority":"P0","needs_human":true}
+{"id":"msg-020","category":"security","priority":"P0","needs_human":true}
+{"id":"msg-025","category":"billing","priority":"P1","needs_human":true}

@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "frontline-triage"
+version = "1.0.0"
+description = "Offline-first customer message triage for the FRONTLINE AI build challenge."
+requires-python = ">=3.10"
+
+[tool.setuptools.packages.find]
+where = ["src"]
