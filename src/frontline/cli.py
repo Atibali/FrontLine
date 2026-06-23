@@ -1,11 +1,14 @@
-﻿"""Command line interface for FRONTLINE triage."""
+"""Command line interface for FRONTLINE triage."""
 
 from __future__ import annotations
 
 import argparse
 import json
 import os
+import sys
 import time
+
+_GROQ_THROTTLE_SECS = 2.0  # stay safely under Groq free-tier 30 RPM limit
 from pathlib import Path
 
 from .env import load_dotenv
@@ -63,14 +66,17 @@ def _run(args: argparse.Namespace) -> int:
     predictions = []
     table_rows = []
     groq_client = None
+    groq_disabled_reason = None
 
     if args.mode in ("hybrid", "groq"):
         try:
             groq_client = GroqClient()
         except GroqClientError as exc:
             if args.mode == "groq":
-                raise SystemExit(str(exc))
-            groq_client = None
+                groq_disabled_reason = str(exc)
+                groq_client = None
+            else:
+                groq_client = None
 
     for index, row in enumerate(rows, start=1):
         item_id = str(row.get("id") or f"msg-{index:03d}")
@@ -78,9 +84,16 @@ def _run(args: argparse.Namespace) -> int:
         if args.mode == "offline" or groq_client is None:
             decision = triage_message(message, item_id)
         elif args.mode == "groq":
-            decision = groq_client.triage("" if message is None else str(message))
+            try:
+                decision = groq_client.triage("" if message is None else str(message))
+                time.sleep(_GROQ_THROTTLE_SECS)
+            except GroqClientError as exc:
+                if groq_disabled_reason is None:
+                    groq_disabled_reason = str(exc)
+                decision = triage_message(message, item_id)
         else:
             decision = triage_hybrid(message, item_id, groq_client=groq_client)
+            time.sleep(_GROQ_THROTTLE_SECS)
         predictions.append(decision)
         table_row = {"id": item_id, **decision}
         if row.get("_input_error"):
@@ -92,6 +105,9 @@ def _run(args: argparse.Namespace) -> int:
     elapsed_ms = (time.perf_counter() - start) * 1000
     write_json(args.output, predictions)
 
+    if groq_disabled_reason is not None and args.mode == "groq":
+        print(f"Groq mode failed, falling back to offline triage: {groq_disabled_reason}", file=sys.stderr)
+
     if args.table:
         print(_table(table_rows))
     if args.json:
@@ -99,8 +115,25 @@ def _run(args: argparse.Namespace) -> int:
 
     per_message = elapsed_ms / max(1, len(predictions))
     print(f"\nProcessed {len(predictions)} messages in {elapsed_ms:.1f} ms ({per_message:.2f} ms/message).")
-    print(f"Saved predictions to {args.output}. Offline model cost: $0.00.")
+    print(f"Saved predictions to {args.output}. {_cost_summary(args.mode, groq_client)}")
     return 0
+
+
+def _cost_summary(mode: str, groq_client) -> str:
+    """Return a human-readable cost string appropriate for the triage mode."""
+    offline_part = "Offline model cost: $0.00."
+    if mode == "offline" or groq_client is None:
+        return offline_part
+    prompt_tok, completion_tok = groq_client.token_usage()
+    cost = groq_client.estimated_cost()
+    groq_part = (
+        f"Groq cost: ~${cost:.6f} "
+        f"({prompt_tok:,} prompt + {completion_tok:,} completion tokens, "
+        f"model: {groq_client.config.model})."
+    )
+    if mode == "hybrid":
+        return f"{offline_part} {groq_part}"
+    return groq_part  # groq-only mode
 
 
 def _eval(args: argparse.Namespace) -> int:
@@ -156,3 +189,4 @@ def _clip(value: str, width: int) -> str:
     if len(value) <= width:
         return value
     return value[: max(0, width - 3)] + "..."
+

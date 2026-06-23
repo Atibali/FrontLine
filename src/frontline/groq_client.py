@@ -1,4 +1,4 @@
-﻿"""Optional Groq API client for hybrid triage."""
+"""Optional Groq API client for hybrid triage."""
 
 from __future__ import annotations
 
@@ -12,6 +12,18 @@ from .triage import VALID_CATEGORIES, VALID_PRIORITIES
 
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+
+# Approximate Groq pricing: (input $/1M tokens, output $/1M tokens)
+# Source: https://console.groq.com/settings/billing
+_MODEL_PRICING: dict[str, tuple[float, float]] = {
+    "llama-3.1-8b-instant":    (0.05, 0.08),
+    "llama-3.3-70b-versatile": (0.59, 0.79),
+    "llama3-8b-8192":          (0.05, 0.08),
+    "llama3-70b-8192":         (0.59, 0.79),
+    "gemma2-9b-it":            (0.20, 0.20),
+    "mixtral-8x7b-32768":      (0.24, 0.24),
+}
+_DEFAULT_PRICING: tuple[float, float] = (0.05, 0.08)
 
 
 @dataclass(frozen=True)
@@ -36,6 +48,8 @@ class GroqClient:
         if not config.api_key:
             raise GroqClientError("GROQ_API_KEY is missing")
         self.config = config
+        self._prompt_tokens: int = 0
+        self._completion_tokens: int = 0
 
     def triage(self, message: str) -> dict:
         prompt = _build_prompt(message)
@@ -63,18 +77,37 @@ class GroqClient:
             headers={
                 "Authorization": f"Bearer {self.config.api_key}",
                 "Content-Type": "application/json",
+                "User-Agent": "python-frontline/1.0",
             },
             method="POST",
         )
         try:
             with urllib.request.urlopen(request, timeout=self.config.timeout_seconds) as response:
                 raw = response.read().decode("utf-8")
+        except urllib.error.HTTPError as exc:
+            detail = f"{exc.code} {exc.reason}"
+            body = exc.read().decode("utf-8", errors="replace") if exc.fp else ""
+            if body:
+                detail = f"{detail}: {body[:200]}"
+            raise GroqClientError(f"Groq request failed: {detail}") from exc
         except (urllib.error.URLError, TimeoutError) as exc:
             raise GroqClientError(f"Groq request failed: {exc}") from exc
 
         parsed = json.loads(raw)
+        usage = parsed.get("usage") or {}
+        self._prompt_tokens += int(usage.get("prompt_tokens", 0))
+        self._completion_tokens += int(usage.get("completion_tokens", 0))
         content = parsed["choices"][0]["message"]["content"].strip()
         return _normalize_decision(content)
+
+    def token_usage(self) -> tuple[int, int]:
+        """Return (prompt_tokens, completion_tokens) accumulated across all calls."""
+        return self._prompt_tokens, self._completion_tokens
+
+    def estimated_cost(self) -> float:
+        """Return estimated USD cost based on accumulated token usage and model pricing."""
+        in_rate, out_rate = _MODEL_PRICING.get(self.config.model, _DEFAULT_PRICING)
+        return (self._prompt_tokens * in_rate + self._completion_tokens * out_rate) / 1_000_000
 
 
 def _build_prompt(message: str) -> str:
