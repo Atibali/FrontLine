@@ -1,4 +1,4 @@
-﻿"""Hybrid routing between the offline rules engine and Groq."""
+"""Hybrid routing between the offline rules engine and Groq."""
 
 from __future__ import annotations
 
@@ -12,6 +12,11 @@ _PRIORITY_ORDER = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
 def triage_hybrid(message: str | None, message_id: str | None = None, *, groq_client: GroqClient | None = None) -> dict:
     offline = triage_message(message, message_id)
     if groq_client is None:
+        return offline
+
+    # Never send injection, empty, or unclassifiable messages to Groq.
+    # The offline engine returns confidence=0.0 for these cases.
+    if offline.get("confidence", 1.0) == 0.0:
         return offline
 
     if not _should_call_groq(offline):

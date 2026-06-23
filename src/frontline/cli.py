@@ -84,15 +84,21 @@ def _run(args: argparse.Namespace) -> int:
         if args.mode == "offline" or groq_client is None:
             decision = triage_message(message, item_id)
         elif args.mode == "groq":
-            try:
-                decision = groq_client.triage("" if message is None else str(message))
-                if _GROQ_THROTTLE_SECS:
-                    time.sleep(_GROQ_THROTTLE_SECS)
-            except GroqClientError as exc:
-                if groq_disabled_reason is None:
-                    groq_disabled_reason = str(exc)
-                groq_client = None
-                decision = triage_message(message, item_id)
+            # Pre-screen: never send injection, empty, or unclassifiable messages to Groq.
+            # The offline engine returns confidence=0.0 for these cases.
+            offline_pre = triage_message(message, item_id)
+            if offline_pre.get("confidence", 1.0) == 0.0:
+                decision = offline_pre
+            else:
+                try:
+                    decision = groq_client.triage("" if message is None else str(message))
+                    if _GROQ_THROTTLE_SECS:
+                        time.sleep(_GROQ_THROTTLE_SECS)
+                except GroqClientError as exc:
+                    if groq_disabled_reason is None:
+                        groq_disabled_reason = str(exc)
+                    groq_client = None
+                    decision = triage_message(message, item_id)
         else:
             decision = triage_hybrid(message, item_id, groq_client=groq_client)
             if _GROQ_THROTTLE_SECS:
