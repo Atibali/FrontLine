@@ -66,7 +66,15 @@ class TriageTests(unittest.TestCase):
         self.assertEqual(result.human_accuracy, 1.0)
         self.assertEqual(result.exact_accuracy, 0.5)
 
+    def test_evaluation_uses_source_row_ids(self):
+        source_rows = read_jsonl(ROOT / "data" / "messages.jsonl")
+        truth = read_jsonl(ROOT / "data" / "ground_truth.jsonl")
+        predictions = [triage_message(row.get("message"), row.get("id")) for row in source_rows]
+        result = evaluate(truth, predictions, source_rows=source_rows)
+        self.assertEqual(result.total, len(truth))
+        self.assertGreaterEqual(result.category_accuracy, 0.9)
+        self.assertGreaterEqual(result.exact_accuracy, 0.9)
+
 
 if __name__ == "__main__":
     unittest.main()
-

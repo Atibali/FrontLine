@@ -1,6 +1,6 @@
-# FRONTLINE — Offline-First Customer Message Triage
+﻿# FRONTLINE â€” Offline-First Customer Message Triage
 
-> Turns raw, messy customer messages into structured, actionable triage decisions — instantly, with zero API cost by default.
+> Turns raw, messy customer messages into structured, actionable triage decisions â€” instantly, with zero API cost by default.
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -9,6 +9,7 @@
 
 ---
 
+\n## .env\n\nPlace your Groq settings in a file named `.env` in the project root: `C:\Users\minha\Documents\atib\FrontLine\.env`. The CLI loads it automatically on every run.\n\nExample:\n\n```powershell\nGROQ_API_KEY=your_groq_api_key_here\nGROQ_MODEL=llama-3.1-8b-instant\nGROQ_TIMEOUT_SECONDS=20\nGROQ_THROTTLE_SECS=2\n```\n
 ## What It Does
 
 Every message in `data/messages.jsonl` is processed into a structured JSON decision:
@@ -28,27 +29,27 @@ Every message in `data/messages.jsonl` is processed into a structured JSON decis
 
 | Feature | Detail |
 |---------|--------|
-| 🔌 Zero-dependency offline engine | Runs on Python stdlib only — no API key required |
-| 🤖 Optional Groq LLM backend | Upgrade uncertain cases with `llama-3.1-8b-instant` |
-| 🔀 Hybrid routing | Offline handles confident cases; Groq handles edge cases |
-| 🛡️ Prompt-injection resistance | Customer messages never influence their own classification |
-| 🌐 Multilingual detection | Non-English messages auto-escalate to human review |
-| 💰 Real cost reporting | Token-accurate USD estimates for Groq and hybrid modes |
-| 📊 Evaluation suite | Measures category, priority, and human-flag agreement |
-| ⚡ Fast | ~0.2 ms/message offline; ~2.5 s/message with Groq throttle |
+| ðŸ”Œ Zero-dependency offline engine | Runs on Python stdlib only â€” no API key required |
+| ðŸ¤– Optional Groq LLM backend | Upgrade uncertain cases with `llama-3.1-8b-instant` |
+| ðŸ”€ Hybrid routing | Offline handles confident cases; Groq handles edge cases |
+| ðŸ›¡ï¸ Prompt-injection resistance | Customer messages never influence their own classification |
+| ðŸŒ Multilingual detection | Non-English messages auto-escalate to human review |
+| ðŸ’° Real cost reporting | Token-accurate USD estimates for Groq and hybrid modes |
+| ðŸ“Š Evaluation suite | Measures category, priority, and human-flag agreement |
+| âš¡ Fast | ~0.2 ms/message offline; ~2.5 s/message with Groq throttle |
 
 ---
 
 ## Quick Start
 
-### Option 1 — No install (set PYTHONPATH)
+### Option 1 â€” No install (set PYTHONPATH)
 
 ```powershell
 $env:PYTHONPATH = "src"
 python -m frontline run --table
 ```
 
-### Option 2 — Editable install (recommended)
+### Option 2 â€” Editable install (recommended)
 
 ```powershell
 python -m pip install -e .
@@ -59,7 +60,7 @@ python -m frontline run --table
 
 ## Modes
 
-### Offline (default) — `$0.00`
+### Offline (default) â€” `$0.00`
 
 Pure rules engine. Processes all 40 messages in under 10 ms.
 
@@ -74,7 +75,7 @@ Saved predictions to out\triage.json. Offline model cost: $0.00.
 
 ---
 
-### Groq — LLM-powered
+### Groq â€” LLM-powered
 
 Sends every message to Groq's `llama-3.1-8b-instant` model.
 Requires `GROQ_API_KEY` in your `.env` or environment.
@@ -94,7 +95,7 @@ Saved predictions to out\triage.json. Groq cost: ~$0.000481
 
 ---
 
-### Hybrid — Best of both worlds
+### Hybrid â€” Best of both worlds
 
 The offline engine runs first. If confidence is low, the category is unknown,
 or the message needs human review, it escalates to Groq.
@@ -171,8 +172,8 @@ No failures against the current hand labels.
 python -m unittest
 ```
 
-Tests cover: JSON field validity · priority constraints · prompt-injection resistance ·
-vague input escalation · multilingual detection · evaluation math.
+Tests cover: JSON field validity Â· priority constraints Â· prompt-injection resistance Â·
+vague input escalation Â· multilingual detection Â· evaluation math.
 
 ---
 
@@ -180,23 +181,23 @@ vague input escalation · multilingual detection · evaluation math.
 
 ```
 FrontLine/
-├── src/frontline/
-│   ├── triage.py         # Offline rules engine (keyword scoring, risk flags)
-│   ├── groq_client.py    # Groq API client (token tracking, cost estimation)
-│   ├── hybrid.py         # Hybrid routing logic
-│   ├── cli.py            # CLI entry point (all modes + cost summary)
-│   ├── eval.py           # Evaluation against ground truth
-│   ├── io.py             # JSONL / JSON I/O helpers
-│   └── env.py            # .env loader
-├── data/
-│   ├── messages.jsonl    # 40 challenge messages
-│   └── ground_truth.jsonl # 10 hand-labeled examples
-├── out/
-│   └── triage.json       # Generated predictions
-├── tests/                # Unit tests
-├── .env.example          # Environment variable template
-├── AI_DECISIONS.md       # Design rationale and decision log
-└── pyproject.toml        # Package metadata
+â”œâ”€â”€ src/frontline/
+â”‚   â”œâ”€â”€ triage.py         # Offline rules engine (keyword scoring, risk flags)
+â”‚   â”œâ”€â”€ groq_client.py    # Groq API client (token tracking, cost estimation)
+â”‚   â”œâ”€â”€ hybrid.py         # Hybrid routing logic
+â”‚   â”œâ”€â”€ cli.py            # CLI entry point (all modes + cost summary)
+â”‚   â”œâ”€â”€ eval.py           # Evaluation against ground truth
+â”‚   â”œâ”€â”€ io.py             # JSONL / JSON I/O helpers
+â”‚   â””â”€â”€ env.py            # .env loader
+â”œâ”€â”€ data/
+â”‚   â”œâ”€â”€ messages.jsonl    # 40 challenge messages
+â”‚   â””â”€â”€ ground_truth.jsonl # 10 hand-labeled examples
+â”œâ”€â”€ out/
+â”‚   â””â”€â”€ triage.json       # Generated predictions
+â”œâ”€â”€ tests/                # Unit tests
+â”œâ”€â”€ .env.example          # Environment variable template
+â”œâ”€â”€ AI_DECISIONS.md       # Design rationale and decision log
+â””â”€â”€ pyproject.toml        # Package metadata
 ```
 
 ---
@@ -216,4 +217,5 @@ Costs are calculated automatically based on the model used:
 
 ---
 
-*Built for the FRONTLINE AI build challenge · Python 3.10+ · Zero required dependencies*
+*Built for the FRONTLINE AI build challenge Â· Python 3.10+ Â· Zero required dependencies*
+

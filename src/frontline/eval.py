@@ -15,8 +15,15 @@ class EvaluationResult:
     failures: list[dict]
 
 
-def evaluate(truth: list[dict], predictions: list[dict]) -> EvaluationResult:
+def evaluate(truth: list[dict], predictions: list[dict], source_rows: list[dict] | None = None) -> EvaluationResult:
     by_id = {str(row.get("id")): row for row in predictions if row.get("id") is not None}
+    if not by_id and source_rows is not None:
+        by_id = {
+            str(source_row.get("id")): prediction
+            for source_row, prediction in zip(source_rows, predictions)
+            if source_row.get("id") is not None
+        }
+
     total = len(truth)
     category_hits = 0
     priority_hits = 0
@@ -24,11 +31,9 @@ def evaluate(truth: list[dict], predictions: list[dict]) -> EvaluationResult:
     exact_hits = 0
     failures: list[dict] = []
 
-    for index, expected in enumerate(truth):
+    for expected in truth:
         item_id = str(expected.get("id"))
         actual = by_id.get(item_id)
-        if actual is None and index < len(predictions):
-            actual = predictions[index]
         if actual is None:
             failures.append({"id": item_id, "reason": "missing prediction"})
             continue
@@ -66,4 +71,3 @@ def evaluate(truth: list[dict], predictions: list[dict]) -> EvaluationResult:
         exact_accuracy=exact_hits / denominator,
         failures=failures,
     )
-

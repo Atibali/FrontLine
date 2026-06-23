@@ -1,4 +1,4 @@
-"""Command line interface for FRONTLINE triage."""
+﻿"""Command line interface for FRONTLINE triage."""
 
 from __future__ import annotations
 
@@ -7,8 +7,6 @@ import json
 import os
 import sys
 import time
-
-_GROQ_THROTTLE_SECS = 2.0  # stay safely under Groq free-tier 30 RPM limit
 from pathlib import Path
 
 from .env import load_dotenv
@@ -20,6 +18,7 @@ from .triage import triage_message
 
 DEFAULT_INPUT = Path("data/messages.jsonl")
 DEFAULT_OUTPUT = Path("out/triage.json")
+_GROQ_THROTTLE_SECS = float(os.environ.get("GROQ_THROTTLE_SECS", "0"))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -47,6 +46,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     eval_parser = subparsers.add_parser("eval", help="compare predictions to ground truth")
+    eval_parser.add_argument("--input", default=str(DEFAULT_INPUT), help="original JSONL input path")
     eval_parser.add_argument("--truth", default="data/ground_truth.jsonl", help="ground truth JSONL path")
     eval_parser.add_argument("--predictions", default=str(DEFAULT_OUTPUT), help="prediction JSON path")
 
@@ -86,14 +86,17 @@ def _run(args: argparse.Namespace) -> int:
         elif args.mode == "groq":
             try:
                 decision = groq_client.triage("" if message is None else str(message))
-                time.sleep(_GROQ_THROTTLE_SECS)
+                if _GROQ_THROTTLE_SECS:
+                    time.sleep(_GROQ_THROTTLE_SECS)
             except GroqClientError as exc:
                 if groq_disabled_reason is None:
                     groq_disabled_reason = str(exc)
+                groq_client = None
                 decision = triage_message(message, item_id)
         else:
             decision = triage_hybrid(message, item_id, groq_client=groq_client)
-            time.sleep(_GROQ_THROTTLE_SECS)
+            if _GROQ_THROTTLE_SECS:
+                time.sleep(_GROQ_THROTTLE_SECS)
         predictions.append(decision)
         table_row = {"id": item_id, **decision}
         if row.get("_input_error"):
@@ -138,8 +141,9 @@ def _cost_summary(mode: str, groq_client) -> str:
 
 def _eval(args: argparse.Namespace) -> int:
     truth = read_jsonl(args.truth)
+    source_rows = read_jsonl(args.input)
     predictions = read_json(args.predictions)
-    result = evaluate(truth, predictions)
+    result = evaluate(truth, predictions, source_rows=source_rows)
     print(f"Evaluated {result.total} hand-labeled messages")
     print(f"Category agreement:    {_pct(result.category_accuracy)}")
     print(f"Priority agreement:    {_pct(result.priority_accuracy)}")
@@ -189,4 +193,3 @@ def _clip(value: str, width: int) -> str:
     if len(value) <= width:
         return value
     return value[: max(0, width - 3)] + "..."
-
