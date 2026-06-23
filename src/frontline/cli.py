@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
 from pathlib import Path
 
+from .env import load_dotenv
 from .eval import evaluate
+from .groq_client import GroqClient, GroqClientError
+from .hybrid import triage_hybrid
 from .io import read_json, read_jsonl, write_json
 from .triage import triage_message
 
@@ -27,6 +31,17 @@ def main(argv: list[str] | None = None) -> int:
     run_parser.add_argument("--output", default=str(DEFAULT_OUTPUT), help="JSON output path")
     run_parser.add_argument("--table", action="store_true", help="print a CLI table")
     run_parser.add_argument("--json", action="store_true", help="print JSON to stdout")
+    run_parser.add_argument(
+        "--mode",
+        choices=("offline", "hybrid", "groq"),
+        default="offline",
+        help="choose offline rules, hybrid routing, or Groq-only mode",
+    )
+    run_parser.add_argument(
+        "--model",
+        default=os.environ.get("GROQ_MODEL", "llama-3.1-8b-instant"),
+        help="Groq model name",
+    )
 
     eval_parser = subparsers.add_parser("eval", help="compare predictions to ground truth")
     eval_parser.add_argument("--truth", default="data/ground_truth.jsonl", help="ground truth JSONL path")
@@ -42,14 +57,30 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _run(args: argparse.Namespace) -> int:
+    load_dotenv()
     start = time.perf_counter()
     rows = read_jsonl(args.input)
     predictions = []
     table_rows = []
+    groq_client = None
+
+    if args.mode in ("hybrid", "groq"):
+        try:
+            groq_client = GroqClient()
+        except GroqClientError as exc:
+            if args.mode == "groq":
+                raise SystemExit(str(exc))
+            groq_client = None
+
     for index, row in enumerate(rows, start=1):
         item_id = str(row.get("id") or f"msg-{index:03d}")
         message = row.get("message", "")
-        decision = triage_message(message, item_id)
+        if args.mode == "offline" or groq_client is None:
+            decision = triage_message(message, item_id)
+        elif args.mode == "groq":
+            decision = groq_client.triage("" if message is None else str(message))
+        else:
+            decision = triage_hybrid(message, item_id, groq_client=groq_client)
         predictions.append(decision)
         table_row = {"id": item_id, **decision}
         if row.get("_input_error"):
@@ -125,7 +156,3 @@ def _clip(value: str, width: int) -> str:
     if len(value) <= width:
         return value
     return value[: max(0, width - 3)] + "..."
-
-
-
-

@@ -1,4 +1,4 @@
-# FRONTLINE - Offline Customer Message Triage
+﻿# FRONTLINE - Offline Customer Message Triage
 
 FRONTLINE turns messy customer messages into structured triage decisions:
 
@@ -13,7 +13,7 @@ FRONTLINE turns messy customer messages into structured triage decisions:
 }
 ```
 
-It is built for the one-day AI challenge: no API key, no dependency install, and no network required for the demo.
+It is built for the one-day AI challenge: offline by default, with an optional Groq-backed hybrid mode if you set `GROQ_API_KEY`.
 
 ## Quick Start
 
@@ -24,6 +24,14 @@ $env:PYTHONPATH="src"
 python -m frontline run --input data/messages.jsonl --output out/triage.json --table
 python -m frontline eval --truth data/ground_truth.jsonl --predictions out/triage.json
 python -m unittest
+```
+
+Hybrid mode with Groq:
+
+```powershell
+$env:PYTHONPATH="src"
+$env:GROQ_API_KEY="your_key_here"
+python -m frontline run --mode hybrid --table
 ```
 
 Optional editable install, if you prefer not to set `PYTHONPATH`:
@@ -39,6 +47,7 @@ python -m frontline run --table
 - Emits strict JSON predictions to `out/triage.json`.
 - Shows a CLI table for the live demo.
 - Flags uncertain, ambiguous, adversarial, security-sensitive, legal, non-English, and P0/P1 messages for human review.
+- Can optionally call Groq for low-confidence cases while keeping the offline guardrails as fallback.
 - Measures agreement against 10 hand-labeled examples in `data/ground_truth.jsonl`.
 - Reports latency per message and offline cost.
 
@@ -64,7 +73,7 @@ python -m frontline run --table
    python -m frontline eval
    ```
 
-5. Explain `AI_DECISIONS.md`: transparent rules, conservative escalation, measured accuracy, zero API cost.
+5. Explain `AI_DECISIONS.md`: transparent rules, conservative escalation, measured accuracy, zero API cost, and hybrid routing for uncertain cases.
 
 ## Judging Checklist
 
