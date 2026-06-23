@@ -3,7 +3,6 @@
 > Turns raw, messy customer messages into structured, actionable triage decisions — instantly, with zero API cost by default.
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)
-![License](https://img.shields.io/badge/license-MIT-green)
 ![Offline Cost](https://img.shields.io/badge/offline%20cost-%240.00-brightgreen)
 ![Eval](https://img.shields.io/badge/eval-100%25%20all%20modes-success)
 ![Groq](https://img.shields.io/badge/Groq-optional-orange)
